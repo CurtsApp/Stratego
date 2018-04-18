@@ -12,7 +12,7 @@ import edu.asu.stratego.gui.board.BoardSquareEventPane;
 
 class BoardSquareEventPaneTest {
 
-	Game game;
+	
 
 	@BeforeAll
 	static void setUpBeforeClass() throws Exception {
@@ -24,7 +24,7 @@ class BoardSquareEventPaneTest {
 
 	@BeforeEach
 	void setUp() throws Exception {
-		game = new Game();
+		
 	}
 
 	@AfterEach
