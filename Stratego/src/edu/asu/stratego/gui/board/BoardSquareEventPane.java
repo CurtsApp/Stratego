@@ -351,7 +351,7 @@ public class BoardSquareEventPane extends GridPane {
     }
 
     // Returns true if the given square is a lake
-    private static boolean isLake(int row, int col) {
+    public static boolean isLake(int row, int col) {
     	if (col == 2 || col == 3 || col == 6 || col == 7) {
             if (row == 4 || row == 5)
                 return true;
@@ -360,7 +360,7 @@ public class BoardSquareEventPane extends GridPane {
     }
     
     // Returns false if the given square is outside of the board
-    private static boolean isInBounds(int row, int col) {
+    public static boolean isInBounds(int row, int col) {
     	if(row < 0 || row > 9)
     		return false;
     	if(col < 0 || col > 9)
@@ -370,12 +370,12 @@ public class BoardSquareEventPane extends GridPane {
     }
     
     // Returns true if the piece is the opponent (from the client's perspective)
-    private static boolean isOpponentPiece(int row, int col) {
+    public static boolean isOpponentPiece(int row, int col) {
     	return Game.getBoard().getSquare(row, col).getPiece().getPieceColor() != Game.getPlayer().getColor();
     }
     
     // Returns true if the piece is null
-    private static boolean isNullPiece(int row, int col) {
+    public static boolean isNullPiece(int row, int col) {
     	return Game.getBoard().getSquare(row, col).getPiece() == null;
     }
 
