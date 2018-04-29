@@ -2,6 +2,7 @@ package edu.asu.stratego.gui;
 
 import java.awt.Dimension;
 import java.awt.Toolkit;
+import java.io.IOException;
 
 import javafx.stage.Stage;
 
@@ -21,8 +22,9 @@ public class ClientStage extends Stage {
     
     /**
      * Creates a new instance of ClientStage.
+     * @throws IOException 
      */
-    public ClientStage() {
+    public ClientStage() throws IOException {
         // Calculate the BoardScene dimensions from screen resolution.
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         SIDE = (int) (0.85 * screenSize.getHeight()) / 12 * 12;
@@ -36,9 +38,10 @@ public class ClientStage extends Stage {
     
     /**
      * Switch to the Connection Scene.
+     * @throws IOException 
      * @see edu.asu.stratego.gui.ConnectionScene
      */
-    public void setConnectionScene() {
+    public void setConnectionScene() throws IOException {
         connection = new ConnectionScene();
         this.setScene(getConnection().scene);
     }
