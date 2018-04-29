@@ -179,7 +179,7 @@ public class ConnectionScene {
          * a valid ipv4 address, that is, it contains four numerical fields
          * separated by points, and each field is between 0 and 255 (inclusive)
          *
-         * @returns whether ip entered by used is a valid ipv4 address
+         * @return whether ip entered by used is a valid ipv4 address
          */
         public boolean isValid(String ip)
         {
@@ -257,7 +257,7 @@ public class ConnectionScene {
         
         /**
          *
-         * @returns whether or not the entered character is an ascii digit
+         * @return whether or not the entered character is an ascii digit
          */
         public boolean isDigit(char test)
         {
