@@ -24,7 +24,7 @@ public class WaitingScene {
     public WaitingScene() {
         // Create UI.
         StackPane pane = new StackPane();
-        pane.getChildren().add(new Label("Waiting for an opponent..."));
+        pane.getChildren().add(new Label("Connected to Server...\nWaiting for an opponent..."));
         
         scene = new Scene(pane, WINDOW_WIDTH, WINDOW_HEIGHT);
         scene.setFill(Color.LIGHTGRAY);

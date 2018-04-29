@@ -1,7 +1,8 @@
 package edu.asu.stratego.gui;
  
 import java.io.IOException;
- 
+import java.net.UnknownHostException;
+
 import javafx.application.Platform;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
@@ -160,9 +161,20 @@ public class ConnectionScene {
                         	ClientSocket.connect(serverIP, 4212);
                         }
                     }
-                    catch (IOException | InterruptedException e) {
+                    catch (UnknownHostException ex)
+                    {
                         Platform.runLater(() -> {
-                            statusLabel.setText("Cannot connect to the Server");
+                            statusLabel.setText("Cannot connect to Server");
+                        });	
+                    }
+                    catch (IOException e) {
+                        Platform.runLater(() -> {
+                            statusLabel.setText("Cannot find Server at that address");
+                        });
+                    }
+                    catch (InterruptedException e) {
+                        Platform.runLater(() -> {
+                            statusLabel.setText("Server connection interrupted");
                         });
                     }
                     finally {
