@@ -41,6 +41,12 @@ public class Server {
             }
         }
         
-        finally { listener.close(); }
+        finally 
+        { 
+        	if(listener != null)
+        	{
+        		listener.close(); 
+        	}
+        }
     }
 }
