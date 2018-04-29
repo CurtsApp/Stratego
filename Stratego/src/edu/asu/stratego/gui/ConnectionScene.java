@@ -94,8 +94,8 @@ public class ConnectionScene {
             // Default values.
             if (nickname.equals(""))
                 nickname = "Player";
-            if (serverIP.equals(""))
-                serverIP = "localhost";
+            //if (serverIP.equals(""))
+                //serverIP = "localhost";
            
             Game.getPlayer().setNickname(nickname);
            
@@ -148,8 +148,17 @@ public class ConnectionScene {
                         // Wait for submitFields button event.
                         playerLogin.wait();
                        
-                        // Attempt connection to server.
-                        ClientSocket.connect(serverIP, 4212);
+                        if(!isValid(serverIP))
+                        {
+                        	Platform.runLater(() -> {
+                                statusLabel.setText("Enter \"localhost\" or a valid ipv4 address");
+                            });
+                        }
+                        else
+                        {
+                        	// Attempt connection to server.
+                        	ClientSocket.connect(serverIP, 4212);
+                        }
                     }
                     catch (IOException | InterruptedException e) {
                         Platform.runLater(() -> {
@@ -162,6 +171,104 @@ public class ConnectionScene {
                     }
                 }
             }
+        }
+        
+        
+        /**
+         * boolean method for determining whether user's ip address is
+         * a valid ipv4 address, that is, it contains four numerical fields
+         * separated by points, and each field is between 0 and 255 (inclusive)
+         *
+         * @returns whether ip entered by used is a valid ipv4 address
+         */
+        public boolean isValid(String ip)
+        {
+        	boolean valid = true;
+        	
+        	if(ip.length() < 7)
+        	{
+        		valid = false;
+        	}
+        	else if(!ip.equals("localhost"))
+        	{
+        		if(ip.charAt(0) == '.' || ip.charAt(ip.length() - 1) == '.')
+        		{
+        			valid = false;
+        		}
+        		else
+        		{
+        			int points = 0;
+        			
+        			int[] locs = new int[3];
+        			
+        			int currentLoc = 0;
+        			
+            		for(int i = 0; i < ip.length(); i++)
+            		{
+            			if(ip.charAt(i) == '.')
+            			{
+            				points ++;
+            				
+            				if(points < 4)
+            				{
+            					locs[currentLoc] = i;
+            					
+            					currentLoc ++;
+            				}
+            				else
+            				{
+            					valid = false;
+            				}
+            			}
+            			else if(!isDigit(ip.charAt(i)))
+            			{
+            				valid = false;
+            			}
+            		}
+            		
+            		if(points != 3)
+            		{
+            			valid = false;
+            		}
+            		else
+            		{
+            			for(int i = 1; i < locs.length; i++)
+            			{
+            				if(locs[i] == locs[i-1] + 1)
+            					valid = false;
+            			}
+            			
+            			if(valid)
+    					{        			
+            				String[] values = ip.split("\\.");
+            			
+            				for(int i = 0; i < values.length; i++)
+            				{
+            					if(Integer.valueOf(values[i]) > 255)
+            						valid = false;
+            				}
+    					}
+            		}
+        		}
+        	}
+        	
+        	return valid;
+        } 
+        
+        /**
+         *
+         * @returns whether or not the entered character is an ascii digit
+         */
+        public boolean isDigit(char test)
+        {
+        	boolean digit = false;
+        	
+        	if(((int) test) > 47 && ((int) test) < 58)
+        	{
+        		digit = true;
+        	}
+        	
+        	return digit;
         }
     }
 }
