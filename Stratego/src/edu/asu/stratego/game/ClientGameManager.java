@@ -1,8 +1,14 @@
 package edu.asu.stratego.game;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
@@ -386,8 +392,217 @@ public class ClientGameManager implements Runnable {
             }
         }
         
+        
+        
+        //stores win and loss ratio in file called Players.sav
+    	try 
+    	{
+    		String name = Game.getPlayer().getNickname();
+    		
+    		boolean win = false;
+    		
+    		if (Game.getPlayer().getColor() == PieceColor.BLUE && 
+    				(Game.getStatus() == GameStatus.RED_NO_MOVES || 
+    				Game.getStatus() == GameStatus.RED_CAPTURED))
+    		{
+    			win = true;
+    		}
+    		else if (Game.getPlayer().getColor() == PieceColor.RED && 
+    				(Game.getStatus() == GameStatus.BLUE_NO_MOVES || 
+    				Game.getStatus() == GameStatus.BLUE_CAPTURED))
+    		{
+    			win = true;
+    		}
+
+    		
+        	File file = new File("Players.sav");
+        	file.createNewFile();
+        	BufferedReader stdin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+        	ArrayList<String> list = new ArrayList<String>();
+        	String input = stdin.readLine();
+        	int current = 0;
+			
+        	while(input != null)
+        	{
+        		list.add(decrypt(input));
+		
+        		input = stdin.readLine();
+        	}
+        	stdin.close();
+
+        	FileWriter writer = new FileWriter(file);
+
+        	if(nameLoc(list, name) != -1) //name found
+        	{
+        		if(win)
+        		{
+        			writer.write(encrypt(findName(list.get(nameLoc(list, name))) + " " + 
+            				Integer.toString(Integer.valueOf(findWin(list.get(nameLoc(list, name)))) + 1) + " " + 
+            				findLoss(list.get(nameLoc(list, name)))) + System.getProperty("line.separator"));
+        		}
+        		else
+        		{
+        			writer.write(encrypt(findName(list.get(nameLoc(list, name))) + " " + 
+            				findWin(list.get(nameLoc(list, name))) + " " + 
+            				Integer.toString(Integer.valueOf(findLoss(list.get(nameLoc(list, name)))) + 1)) + System.getProperty("line.separator"));
+        		}
+        		
+        		for(int i = 0; i < list.size(); i++)
+        		{
+        			if(i != nameLoc(list, name))
+        			{
+        				writer.write(encrypt(list.get(i)) + System.getProperty("line.separator"));
+        			}
+        		}
+        	}
+        	else
+			{
+        		if(win)
+        		{
+    				writer.write(encrypt(name + " " + "1" + " " + "0") + System.getProperty("line.separator"));
+        		}
+        		else
+        		{
+    				writer.write(encrypt(name + " " + "0" + " " + "1") + System.getProperty("line.separator"));
+        		}
+        		
+				for(int i = 0; i < list.size(); i++)
+				{
+					writer.write(encrypt(list.get(i)) + System.getProperty("line.separator"));
+				}
+			}
+
+        	writer.flush();
+        	writer.close();
+	        
+		} 
+    	catch (IOException e) 
+    	{
+			e.printStackTrace();
+		}
+        
         revealAll();
     }
+    
+    
+    /**
+    * encrypts server ip to prevent easy tampering
+    *
+    * @return encrypted value of a server ip
+    */
+	public static String encrypt(String entered)
+	{
+		String result = "";
+
+		char[] values = entered.toCharArray();
+
+		int[] encrypted = new int[values.length];
+
+		for(int i = 0; i < values.length; i++)
+		{
+			encrypted[i] = (int)Math.pow((int)values[i],2);
+
+			result += Integer.toString(encrypted[i]) + "$";
+		}
+
+		return ConnectionScene.reverse(result);
+	}
+
+	
+    /**
+    * reverses encryption of encrypted server ip
+    *
+    * @return decrypted value of a server ip
+    */
+	public static String decrypt(String entered)
+	{
+		String result = "";
+
+		entered = reverse(entered);
+
+		String[] values = entered.split("\\$");
+
+		int[] decrypted = new int[values.length];
+
+		for(int i = 0; i < values.length; i++)
+		{
+			decrypted[i] = (int)Math.sqrt(Integer.valueOf(values[i]));
+
+			result += Character.toString((char)decrypted[i]);
+		}
+
+		return result;
+	}
+	
+
+    
+    
+    
+	public static int nameLoc(ArrayList<String> list, String name)
+	{
+		int result = -1;
+
+		String in = "";
+
+	        for(int i = 0; i < list.size(); i++)
+		{
+			in = list.get(i);
+
+			if(findName(in).equals(name))
+			{
+				result = i;
+			}
+		}
+
+		return result;
+	}
+    
+	public static String findName(String enter)
+	{
+		String result = reverse(enter);
+
+		result = result.substring(result.indexOf(" ") + 1);
+
+		result = result.substring(result.indexOf(" ") + 1);
+
+		return reverse(result);
+	}
+
+	public static String findLoss(String enter)
+	{
+		String result = reverse(enter);
+
+		result = result.substring(0, result.indexOf(" "));
+
+		return reverse(result);
+	}
+
+	public static String findWin(String enter)
+	{
+		String result = reverse(enter);
+
+		result = result.substring(result.indexOf(" ") + 1);
+
+		result = result.substring(0, result.indexOf(" "));
+
+		return reverse(result);
+	}
+
+	public static String reverse(String enter)
+	{
+		if(enter.length() > 1)
+		{
+			return enter.substring(enter.length() - 1) + reverse(enter.substring(0, enter.length() - 1));
+		}
+		else
+		{
+			return enter;
+		}
+	}
+    
+    
+    
+    
 
 	public static Object getSendMove() {
 		return sendMove;
