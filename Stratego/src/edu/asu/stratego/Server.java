@@ -1,6 +1,8 @@
 package edu.asu.stratego;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -31,6 +33,8 @@ public class Server {
                 Socket playerOne = listener.accept();
                 System.out.println("Session " + Session.getNextID() + 
                                    ": Player 1 has joined the session");
+                ObjectOutputStream toPlayerOne = new ObjectOutputStream(playerOne.getOutputStream());
+    			ObjectInputStream fromPlayerOne = new ObjectInputStream(playerOne.getInputStream());
                 
                 Socket playerTwo = listener.accept();
                 System.out.println("Session " + Session.getNextID() + 

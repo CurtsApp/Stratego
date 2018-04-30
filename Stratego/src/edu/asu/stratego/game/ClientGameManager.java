@@ -10,11 +10,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
-import javafx.animation.FadeTransition;
-import javafx.application.Platform;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.util.Duration;
 import edu.asu.stratego.game.board.ClientSquare;
 import edu.asu.stratego.gui.BoardScene;
 import edu.asu.stratego.gui.ClientStage;
@@ -22,6 +17,11 @@ import edu.asu.stratego.gui.ConnectionScene;
 import edu.asu.stratego.gui.board.BoardTurnIndicator;
 import edu.asu.stratego.media.ImageConstants;
 import edu.asu.stratego.util.HashTables;
+import javafx.animation.FadeTransition;
+import javafx.application.Platform;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.util.Duration;
 
 /**
  * Task to handle the Stratego game on the client-side.
@@ -56,12 +56,32 @@ public class ClientGameManager implements Runnable {
      */
     @Override
     public void run() {
-        connectToServer();
-        waitForOpponent();
+        if(isReconnectingFromPreviousGame()) {
+        	// Reestablish ClientSocket
+        	ClientSocket.reconnect();
+        	
+        	
+        	playGame(true);
+        } else {
+        	connectToServer();
+            waitForOpponent();
 
-        setupBoard();
-        playGame();
+            setupBoard();
+            playGame(false);
+        }
+    	
     }
+    
+    private boolean isReconnectingFromPreviousGame() {
+    	// Read from file, check if was discconected
+    	return false;
+    }
+    
+    private void reconnectToServer() {
+    	
+    }
+    
+
     
     /**
      * @return Object used for communication between the Setup Board GUI and 
@@ -85,6 +105,7 @@ public class ClientGameManager implements Runnable {
             Thread serverConnect = new Thread(connectToServer);
             serverConnect.setDaemon(true);
             serverConnect.start();
+            // The main thread will be haulted until ClientSocket.getInstance() != null;
             serverConnect.join();
         }
         catch(InterruptedException e) {
@@ -108,7 +129,8 @@ public class ClientGameManager implements Runnable {
         Platform.runLater(() -> { stage.setWaitingScene(); });
         
         try {
-            // I/O Streams.
+            System.out.println("Wait For Opponent");
+        	// I/O Streams.
             toServer = new ObjectOutputStream(ClientSocket.getInstance().getOutputStream());
             fromServer = new ObjectInputStream(ClientSocket.getInstance().getInputStream());
      
@@ -171,11 +193,14 @@ public class ClientGameManager implements Runnable {
         }
     }
     
-    private void playGame() {
-    	// Remove setup panel
-        Platform.runLater(() -> {
-            BoardScene.getRootPane().getChildren().remove(BoardScene.getSetupPanel());
-        });
+    private void playGame(boolean wasReconnect) {
+    	if(!wasReconnect) {
+    		// Remove setup panel
+            Platform.runLater(() -> {
+                BoardScene.getRootPane().getChildren().remove(BoardScene.getSetupPanel());
+            });
+    	}
+    	
         
         // Get game status from the server
         try {
