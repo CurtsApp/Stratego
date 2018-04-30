@@ -67,6 +67,8 @@ public final class ClientSocket {
     public static void reconnect() {
     	try {
 			socket = new Socket(getLastGameIp(), getLastPort());
+			
+			
 		} catch (UnknownHostException e) {
 
 			e.printStackTrace();
@@ -77,10 +79,50 @@ public final class ClientSocket {
     }
     
     private static String getLastGameIp() {
+    	File file = new File("gameinfo.txt");
+    	Scanner scanner;
+		try {
+			scanner = new Scanner(file);
+			String gameInfo = scanner.next();
+			String[] gamePieces = gameInfo.split(",");
+			return gamePieces[0];
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
     	return "localhost";
     }
     
     private static int getLastPort() {
+    	File file = new File("gameinfo.txt");
+    	Scanner scanner;
+		try {
+			scanner = new Scanner(file);
+			String gameInfo = scanner.next();
+			String[] gamePieces = gameInfo.split(",");
+			return Integer.parseInt(gamePieces[1]);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+    	return 4242;
+    }
+    
+    private static int getLastGameId() {
+    	File file = new File("gameinfo.txt");
+    	Scanner scanner;
+		try {
+			scanner = new Scanner(file);
+			String gameInfo = scanner.next();
+			String[] gamePieces = gameInfo.split(",");
+			return Integer.parseInt(gamePieces[2]);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
     	return 0;
     }
     

@@ -10,6 +10,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
+import edu.asu.stratego.Session;
 import edu.asu.stratego.game.board.ClientSquare;
 import edu.asu.stratego.gui.BoardScene;
 import edu.asu.stratego.gui.ClientStage;
@@ -27,174 +28,207 @@ import javafx.util.Duration;
  * Task to handle the Stratego game on the client-side.
  */
 public class ClientGameManager implements Runnable {
-    
-    private static Object setupPieces = new Object();
-    private static Object sendMove    = new Object();
-    private static Object receiveMove = new Object();
-    private static Object waitFade    = new Object();
-    private static Object waitVisible = new Object();
-    
-    private ObjectOutputStream toServer;
-    private ObjectInputStream  fromServer;
-    
-    private ClientStage stage;
-    
-    /**
-     * Creates a new instance of ClientGameManager.
-     * 
-     * @param stage the stage that the client is set in
-     */
-    public ClientGameManager(ClientStage stage) {
-        this.stage = stage;
-    }
 
-    /**
-     * See ServerGameManager's run() method to understand how the client 
-     * interacts with the server.
-     * 
-     * @see edu.asu.stratego.Game.ServerGameManager
-     */
-    @Override
-    public void run() {
-        if(isReconnectingFromPreviousGame()) {
-        	// Reestablish ClientSocket
-        	ClientSocket.reconnect();
-        	
-        	
-        	playGame(true);
-        } else {
-        	connectToServer();
-            waitForOpponent();
+	private static Object setupPieces = new Object();
+	private static Object sendMove = new Object();
+	private static Object receiveMove = new Object();
+	private static Object waitFade = new Object();
+	private static Object waitVisible = new Object();
 
-            setupBoard();
-            playGame(false);
-        }
-    	
-    }
-    
-    private boolean isReconnectingFromPreviousGame() {
-    	// Read from file, check if was discconected
-    	return false;
-    }
-    
-    private void reconnectToServer() {
-    	
-    }
-    
+	private ObjectOutputStream toServer;
+	private ObjectInputStream fromServer;
 
-    
-    /**
-     * @return Object used for communication between the Setup Board GUI and 
-     * the ClientGameManager to indicate when the player has finished setting 
-     * up their pieces.
-     */
-    public static Object getSetupPieces() {
-        return setupPieces;
-    }
-    
-    /**
-     * Executes the ConnectToServer thread. Blocks the current thread until 
-     * the ConnectToServer thread terminates.
-     * 
-     * @see edu.asu.stratego.gui.ConnectionScene.ConnectToServer
-     */
-    private void connectToServer() {
-        try {
-            ConnectionScene.ConnectToServer connectToServer = 
-                    new ConnectionScene.ConnectToServer();
-            Thread serverConnect = new Thread(connectToServer);
-            serverConnect.setDaemon(true);
-            serverConnect.start();
-            // The main thread will be haulted until ClientSocket.getInstance() != null;
-            serverConnect.join();
-        }
-        catch(InterruptedException e) {
-            // TODO Handle this exception somehow...
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Establish I/O streams between the client and the server. Send player 
-     * information to the server. Then, wait until an object containing player 
-     * information about the opponent is received from the server.
-     * 
-     * <p>
-     * After the player information has been sent and opponent information has 
-     * been received, the method terminates indicating that it is time to set up
-     * the game.
-     * </p>
-     */
-    private void waitForOpponent() {
-        Platform.runLater(() -> { stage.setWaitingScene(); });
-        
-        try {
-            System.out.println("Wait For Opponent");
-        	// I/O Streams.
-            toServer = new ObjectOutputStream(ClientSocket.getInstance().getOutputStream());
-            fromServer = new ObjectInputStream(ClientSocket.getInstance().getInputStream());
-     
-            // Exchange player information.
-            toServer.writeObject(Game.getPlayer());
-            Game.setOpponent((Player) fromServer.readObject());
-            
-            // Infer player color from opponent color.
-            if (Game.getOpponent().getColor() == PieceColor.RED)
-                Game.getPlayer().setColor(PieceColor.BLUE);
-            else
-                Game.getPlayer().setColor(PieceColor.RED);
-        }
-        catch (IOException | ClassNotFoundException e) {
-            // TODO Handle this exception somehow...
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Switches to the game setup scene. Players will place their pieces to 
-     * their initial starting positions. Once the pieces are placed, their 
-     * positions are sent to the server.
-     */
-    private void setupBoard() {
-        Platform.runLater(() -> { stage.setBoardScene(); });
-        
-        synchronized (setupPieces) {
-            try {
-                // Wait for the player to set up their pieces.
-                setupPieces.wait();
-                Game.setStatus(GameStatus.WAITING_OPP);
-                
-                // Send initial piece positions to server.
-                SetupBoard initial = new SetupBoard();
-                initial.getPiecePositions();
-                toServer.writeObject(initial);
-                
-                // Receive opponent's initial piece positions from server.
-                final SetupBoard opponentInitial = (SetupBoard) fromServer.readObject();
-                
-                // Place the opponent's pieces on the board.
-                Platform.runLater(() -> {
-                    for (int row = 0; row < 4; ++row) {
-                        for (int col = 0; col < 10; ++col) {
-                            ClientSquare square = Game.getBoard().getSquare(row, col);
-                            square.setPiece(opponentInitial.getPiece(row, col));
-                            
-                            if (Game.getPlayer().getColor() == PieceColor.RED)
-                                square.getPiecePane().setPiece(ImageConstants.BLUE_BACK);
-                            else
-                                square.getPiecePane().setPiece(ImageConstants.RED_BACK);
-                        }
-                    }
-                });
-            }
-            catch (InterruptedException | IOException | ClassNotFoundException e) {
-                // TODO Handle this exception somehow...
-            }
-        }
-    }
-    
-    private void playGame(boolean wasReconnect) {
+	private ClientStage stage;
+
+	/**
+	 * Creates a new instance of ClientGameManager.
+	 * 
+	 * @param stage
+	 *            the stage that the client is set in
+	 */
+	public ClientGameManager(ClientStage stage) {
+		this.stage = stage;
+	}
+
+	/**
+	 * See ServerGameManager's run() method to understand how the client interacts
+	 * with the server.
+	 * 
+	 * @see edu.asu.stratego.Game.ServerGameManager
+	 */
+	@Override
+	public void run() {
+		if (isReconnectingFromPreviousGame()) {
+			// Reestablish ClientSocket
+			ClientSocket.reconnect();
+
+			playGame(true);
+		} else {
+			connectToServer();
+			waitForOpponent();
+
+			setupBoard();
+			playGame(false);
+		}
+
+	}
+
+	private void reconnectToServer() {
+		try {
+			toServer = new ObjectOutputStream(ClientSocket.getInstance().getOutputStream());
+			fromServer = new ObjectInputStream(ClientSocket.getInstance().getInputStream());
+
+			// Exchange player information.
+			toServer.writeObject(Game.getPlayer());
+			Game.setOpponent((Player) fromServer.readObject());
+
+			// Infer player color from opponent color.
+			if (Game.getOpponent().getColor() == PieceColor.RED)
+				Game.getPlayer().setColor(PieceColor.BLUE);
+			else
+				Game.getPlayer().setColor(PieceColor.RED);
+		} catch (IOException | ClassNotFoundException e) {
+			// TODO Handle this exception somehow...
+			e.printStackTrace();
+		}
+	}
+
+	private boolean isReconnectingFromPreviousGame() {
+		// Read from file, check if was discconected
+
+		File file = new File("gameinfo.txt");
+		try {
+			return file.exists();
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+		return false;
+	}
+
+	/**
+	 * @return Object used for communication between the Setup Board GUI and the
+	 *         ClientGameManager to indicate when the player has finished setting up
+	 *         their pieces.
+	 */
+	public static Object getSetupPieces() {
+		return setupPieces;
+	}
+
+	/**
+	 * Executes the ConnectToServer thread. Blocks the current thread until the
+	 * ConnectToServer thread terminates.
+	 * 
+	 * @see edu.asu.stratego.gui.ConnectionScene.ConnectToServer
+	 */
+	private void connectToServer() {
+		try {
+			ConnectionScene.ConnectToServer connectToServer = new ConnectionScene.ConnectToServer();
+			Thread serverConnect = new Thread(connectToServer);
+			serverConnect.setDaemon(true);
+			serverConnect.start();
+			// The main thread will be haulted until ClientSocket.getInstance() != null;
+			serverConnect.join();
+		} catch (InterruptedException e) {
+			// TODO Handle this exception somehow...
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Establish I/O streams between the client and the server. Send player
+	 * information to the server. Then, wait until an object containing player
+	 * information about the opponent is received from the server.
+	 * 
+	 * <p>
+	 * After the player information has been sent and opponent information has been
+	 * received, the method terminates indicating that it is time to set up the
+	 * game.
+	 * </p>
+	 */
+	private void waitForOpponent() {
+		Platform.runLater(() -> {
+			stage.setWaitingScene();
+		});
+
+		try {
+			System.out.println("Wait For Opponent");
+			// I/O Streams.
+			toServer = new ObjectOutputStream(ClientSocket.getInstance().getOutputStream());
+			fromServer = new ObjectInputStream(ClientSocket.getInstance().getInputStream());
+
+			// Exchange player information.
+			toServer.writeObject(Game.getPlayer());
+			Game.setOpponent((Player) fromServer.readObject());
+
+			// Infer player color from opponent color.
+			if (Game.getOpponent().getColor() == PieceColor.RED)
+				Game.getPlayer().setColor(PieceColor.BLUE);
+			else
+				Game.getPlayer().setColor(PieceColor.RED);
+		} catch (IOException | ClassNotFoundException e) {
+			// TODO Handle this exception somehow...
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Switches to the game setup scene. Players will place their pieces to their
+	 * initial starting positions. Once the pieces are placed, their positions are
+	 * sent to the server.
+	 */
+	private void setupBoard() {
+		Platform.runLater(() -> {
+			stage.setBoardScene();
+		});
+
+		synchronized (setupPieces) {
+			try {
+				// Wait for the player to set up their pieces.
+				setupPieces.wait();
+				Game.setStatus(GameStatus.WAITING_OPP);
+
+				// Send initial piece positions to server.
+				SetupBoard initial = new SetupBoard();
+				initial.getPiecePositions();
+				toServer.writeObject(initial);
+
+				// Receive opponent's initial piece positions from server.
+				final SetupBoard opponentInitial = (SetupBoard) fromServer.readObject();
+
+				// Place the opponent's pieces on the board.
+				Platform.runLater(() -> {
+					for (int row = 0; row < 4; ++row) {
+						for (int col = 0; col < 10; ++col) {
+							ClientSquare square = Game.getBoard().getSquare(row, col);
+							square.setPiece(opponentInitial.getPiece(row, col));
+
+							if (Game.getPlayer().getColor() == PieceColor.RED)
+								square.getPiecePane().setPiece(ImageConstants.BLUE_BACK);
+							else
+								square.getPiecePane().setPiece(ImageConstants.RED_BACK);
+						}
+					}
+				});
+			} catch (InterruptedException | IOException | ClassNotFoundException e) {
+				// TODO Handle this exception somehow...
+			}
+		}
+	}
+
+	private void playGame(boolean wasReconnect) {
     	if(!wasReconnect) {
+    		
+    		File file = new File("gameinfo.txt");
+    		try {
+    			file.createNewFile();
+    			FileWriter writer = new FileWriter(file);
+    			writer.write(ClientSocket.getInstance().getInetAddress() + "," + ClientSocket.getInstance().getPort() + ",");
+    			writer.flush();
+    			writer.close();
+    		} catch (Exception e) {
+    			
+    		}
+    		
     		// Remove setup panel
             Platform.runLater(() -> {
                 BoardScene.getRootPane().getChildren().remove(BoardScene.getSetupPanel());
@@ -209,7 +243,27 @@ public class ClientGameManager implements Runnable {
 			// TODO Handle this somehow...
 			e1.printStackTrace();
 		}
-
+        
+        // Get game id from server
+        try {
+			int gameId = (int) fromServer.readObject();
+			File file = new File("gameinfo.txt");
+    		try {
+    			file.createNewFile();
+    			FileWriter writer = new FileWriter(file);
+    			writer.append(gameId + "");
+    			writer.flush();
+    			writer.close();
+    		} catch (Exception e) {
+    			
+    		}
+			
+		} catch (ClassNotFoundException | IOException e1) {
+			// TODO Handle this somehow...
+			e1.printStackTrace();
+		}
+        
+        
         
         // Main loop (when playing)
         while (Game.getStatus() == GameStatus.IN_PROGRESS) {
@@ -506,26 +560,26 @@ public class ClientGameManager implements Runnable {
 			e.printStackTrace();
 		}
         
+    	File file = new File("gameinfo.txt"); 	
+    	file.delete();
+    	
         revealAll();
     }
-    
-    
-    /**
-    * encrypts server ip to prevent easy tampering
-    *
-    * @return encrypted value of a server ip
-    */
-	public static String encrypt(String entered)
-	{
+
+	/**
+	 * encrypts server ip to prevent easy tampering
+	 *
+	 * @return encrypted value of a server ip
+	 */
+	public static String encrypt(String entered) {
 		String result = "";
 
 		char[] values = entered.toCharArray();
 
 		int[] encrypted = new int[values.length];
 
-		for(int i = 0; i < values.length; i++)
-		{
-			encrypted[i] = (int)Math.pow((int)values[i],2);
+		for (int i = 0; i < values.length; i++) {
+			encrypted[i] = (int) Math.pow((int) values[i], 2);
 
 			result += Integer.toString(encrypted[i]) + "$";
 		}
@@ -533,14 +587,12 @@ public class ClientGameManager implements Runnable {
 		return ConnectionScene.reverse(result);
 	}
 
-	
-    /**
-    * reverses encryption of encrypted server ip
-    *
-    * @return decrypted value of a server ip
-    */
-	public static String decrypt(String entered)
-	{
+	/**
+	 * reverses encryption of encrypted server ip
+	 *
+	 * @return decrypted value of a server ip
+	 */
+	public static String decrypt(String entered) {
 		String result = "";
 
 		entered = reverse(entered);
@@ -549,44 +601,35 @@ public class ClientGameManager implements Runnable {
 
 		int[] decrypted = new int[values.length];
 
-		for(int i = 0; i < values.length; i++)
-		{
-			decrypted[i] = (int)Math.sqrt(Integer.valueOf(values[i]));
+		for (int i = 0; i < values.length; i++) {
+			decrypted[i] = (int) Math.sqrt(Integer.valueOf(values[i]));
 
-			result += Character.toString((char)decrypted[i]);
+			result += Character.toString((char) decrypted[i]);
 		}
 
 		return result;
 	}
-	
 
-    
-    
-    
-	public static int nameLoc(ArrayList<String> list, String name)
-	{
+	public static int nameLoc(ArrayList<String> list, String name) {
 		int result = -1;
 
 		String in = "";
 
-	        for(int i = 0; i < list.size(); i++)
-		{
+		for (int i = 0; i < list.size(); i++) {
 			in = list.get(i);
 
-			if(findName(in).equals(name))
-			{
+			if (findName(in).equals(name)) {
 				result = i;
 			}
 		}
 
 		return result;
 	}
-    
-    /**
-     * get name from string consisting of name win loss
-     */
-	public static String findName(String enter)
-	{
+
+	/**
+	 * get name from string consisting of name win loss
+	 */
+	public static String findName(String enter) {
 		String result = reverse(enter);
 
 		result = result.substring(result.indexOf(" ") + 1);
@@ -596,11 +639,10 @@ public class ClientGameManager implements Runnable {
 		return reverse(result);
 	}
 
-    /**
-     * get loss from string consisting of name win loss
-     */
-	public static String findLoss(String enter)
-	{
+	/**
+	 * get loss from string consisting of name win loss
+	 */
+	public static String findLoss(String enter) {
 		String result = reverse(enter);
 
 		result = result.substring(0, result.indexOf(" "));
@@ -608,11 +650,10 @@ public class ClientGameManager implements Runnable {
 		return reverse(result);
 	}
 
-    /**
-     * get win from string consisting of name win loss
-     */
-	public static String findWin(String enter)
-	{
+	/**
+	 * get win from string consisting of name win loss
+	 */
+	public static String findWin(String enter) {
 		String result = reverse(enter);
 
 		result = result.substring(result.indexOf(" ") + 1);
@@ -622,76 +663,82 @@ public class ClientGameManager implements Runnable {
 		return reverse(result);
 	}
 
-    /**
-    *
-    * @return the reverse of the string that was entered
-    */
-	public static String reverse(String enter)
-	{
-		if(enter.length() > 1)
-		{
+	/**
+	 *
+	 * @return the reverse of the string that was entered
+	 */
+	public static String reverse(String enter) {
+		if (enter.length() > 1) {
 			return enter.substring(enter.length() - 1) + reverse(enter.substring(0, enter.length() - 1));
-		}
-		else
-		{
+		} else {
 			return enter;
 		}
 	}
-    
-    
-    
-    
 
 	public static Object getSendMove() {
 		return sendMove;
 	}
 
-    public static Object getReceiveMove() {
-        return receiveMove;
-    }
-    
-    private void revealAll() {
-    	// End game, reveal all pieces
-    	Platform.runLater(() -> {
-    		for(int row = 0; row < 10; row++) {
-    			for(int col = 0; col < 10; col++) {
-    				if(Game.getBoard().getSquare(row, col).getPiece() != null && Game.getBoard().getSquare(row, col).getPiece().getPieceColor() != Game.getPlayer().getColor()) {
-    					Game.getBoard().getSquare(row, col).getPiecePane().setPiece(HashTables.PIECE_MAP.get(Game.getBoard().getSquare(row, col).getPiece().getPieceSpriteKey()));
-    				}
-    			}
-    		}
-    	});
-    }
-    
-    // Finicky, ill-advised to edit. Resets the opacity, rotation, and piece to null
-    // Duplicate "ResetImageVisibility" class was intended to not set piece to null, untested though.
-    private class ResetSquareImage implements EventHandler<ActionEvent> {
-        @Override
-        public void handle(ActionEvent event) {
-            synchronized (waitFade) {
-                waitFade.notify();
-                Game.getBoard().getSquare(Game.getMove().getStart().x, Game.getMove().getStart().y).getPiecePane().getPiece().setOpacity(1.0);
-                Game.getBoard().getSquare(Game.getMove().getStart().x, Game.getMove().getStart().y).getPiecePane().getPiece().setRotate(0.0);
-                Game.getBoard().getSquare(Game.getMove().getStart().x, Game.getMove().getStart().y).getPiecePane().setPiece(null);
+	public static Object getReceiveMove() {
+		return receiveMove;
+	}
 
-                Game.getBoard().getSquare(Game.getMove().getEnd().x, Game.getMove().getEnd().y).getPiecePane().getPiece().setOpacity(1.0);
-                Game.getBoard().getSquare(Game.getMove().getEnd().x, Game.getMove().getEnd().y).getPiecePane().getPiece().setRotate(0.0);
-            }
-        }
-    }
-    // read above comments
-    private class ResetImageVisibility implements EventHandler<ActionEvent> {
-        @Override
-        public void handle(ActionEvent event) {
-            synchronized (waitVisible) {
-            	waitVisible.notify();
-                Game.getBoard().getSquare(Game.getMove().getStart().x, Game.getMove().getStart().y).getPiecePane().getPiece().setOpacity(1.0);
-                Game.getBoard().getSquare(Game.getMove().getStart().x, Game.getMove().getStart().y).getPiecePane().getPiece().setRotate(0.0);
-                Game.getBoard().getSquare(Game.getMove().getStart().x, Game.getMove().getStart().y).getPiecePane().setPiece(null);
+	private void revealAll() {
+		// End game, reveal all pieces
+		Platform.runLater(() -> {
+			for (int row = 0; row < 10; row++) {
+				for (int col = 0; col < 10; col++) {
+					if (Game.getBoard().getSquare(row, col).getPiece() != null && Game.getBoard().getSquare(row, col)
+							.getPiece().getPieceColor() != Game.getPlayer().getColor()) {
+						Game.getBoard().getSquare(row, col).getPiecePane().setPiece(HashTables.PIECE_MAP
+								.get(Game.getBoard().getSquare(row, col).getPiece().getPieceSpriteKey()));
+					}
+				}
+			}
+		});
+	}
 
-                Game.getBoard().getSquare(Game.getMove().getEnd().x, Game.getMove().getEnd().y).getPiecePane().getPiece().setOpacity(1.0);
-                Game.getBoard().getSquare(Game.getMove().getEnd().x, Game.getMove().getEnd().y).getPiecePane().getPiece().setRotate(0.0);
-            }
-        }
-    }
+	// Finicky, ill-advised to edit. Resets the opacity, rotation, and piece to null
+	// Duplicate "ResetImageVisibility" class was intended to not set piece to null,
+	// untested though.
+	private class ResetSquareImage implements EventHandler<ActionEvent> {
+		@Override
+		public void handle(ActionEvent event) {
+			synchronized (waitFade) {
+				waitFade.notify();
+				Game.getBoard().getSquare(Game.getMove().getStart().x, Game.getMove().getStart().y).getPiecePane()
+						.getPiece().setOpacity(1.0);
+				Game.getBoard().getSquare(Game.getMove().getStart().x, Game.getMove().getStart().y).getPiecePane()
+						.getPiece().setRotate(0.0);
+				Game.getBoard().getSquare(Game.getMove().getStart().x, Game.getMove().getStart().y).getPiecePane()
+						.setPiece(null);
+
+				Game.getBoard().getSquare(Game.getMove().getEnd().x, Game.getMove().getEnd().y).getPiecePane()
+						.getPiece().setOpacity(1.0);
+				Game.getBoard().getSquare(Game.getMove().getEnd().x, Game.getMove().getEnd().y).getPiecePane()
+						.getPiece().setRotate(0.0);
+			}
+		}
+	}
+
+	// read above comments
+	private class ResetImageVisibility implements EventHandler<ActionEvent> {
+		@Override
+		public void handle(ActionEvent event) {
+			synchronized (waitVisible) {
+				waitVisible.notify();
+				Game.getBoard().getSquare(Game.getMove().getStart().x, Game.getMove().getStart().y).getPiecePane()
+						.getPiece().setOpacity(1.0);
+				Game.getBoard().getSquare(Game.getMove().getStart().x, Game.getMove().getStart().y).getPiecePane()
+						.getPiece().setRotate(0.0);
+				Game.getBoard().getSquare(Game.getMove().getStart().x, Game.getMove().getStart().y).getPiecePane()
+						.setPiece(null);
+
+				Game.getBoard().getSquare(Game.getMove().getEnd().x, Game.getMove().getEnd().y).getPiecePane()
+						.getPiece().setOpacity(1.0);
+				Game.getBoard().getSquare(Game.getMove().getEnd().x, Game.getMove().getEnd().y).getPiecePane()
+						.getPiece().setRotate(0.0);
+			}
+		}
+	}
 }

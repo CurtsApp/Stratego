@@ -36,6 +36,8 @@ public class ServerGameManager implements Runnable {
 	private Socket socketOne;
 	private Socket socketTwo;
 	
+	private int gameId;
+	
 	private boolean isP1Connected = true;
 	private boolean isP2Connected = true;
 
@@ -55,6 +57,7 @@ public class ServerGameManager implements Runnable {
 		this.session = "Session " + session.getId() + ": ";
 		this.socketOne = session.getPlayer1();
 		this.socketTwo = session.getPlayer2();
+		this.gameId = session.getId();
 
 		if (Math.random() < 0.5)
 			this.turn = PieceColor.RED;
@@ -160,8 +163,10 @@ public class ServerGameManager implements Runnable {
 
 			toPlayerOne.writeObject(winCondition);
 			toPlayerTwo.writeObject(winCondition);
+			
+			toPlayerOne.writeObject(gameId);
+			toPlayerTwo.writeObject(gameId);
 		} catch (ClassNotFoundException | IOException e) {
-			System.out.println("1111111111111111111111");
 			e.printStackTrace();
 		}
 
@@ -173,25 +178,49 @@ public class ServerGameManager implements Runnable {
 
 			move = getGameData(turn);
 			
-			MoveSet moves = resolvePlayerMove();
-			Move moveToPlayerOne = moves.playerOneMove;
-			Move moveToPlayerTwo = moves.playerTwoMove;
+			// Check if both players are connected
+			if(move.isRedConnected() && move.isBlueConnected()) {
+				// Both are connected continue as normal
+				MoveSet moves = resolvePlayerMove();
+				Move moveToPlayerOne = moves.playerOneMove;
+				Move moveToPlayerTwo = moves.playerTwoMove;
 
-			// Check win conditions.
-			GameStatus winCondition = checkWinCondition();
+				// Check win conditions.
+				GameStatus winCondition = checkWinCondition();
 
-			sendGameData(moveToPlayerOne, moveToPlayerTwo, winCondition);
+				sendGameData(moveToPlayerOne, moveToPlayerTwo, winCondition);
 
-			// Change turn color.
-			if (turn == PieceColor.RED)
-				turn = PieceColor.BLUE;
-			else
-				turn = PieceColor.RED;
+				// Change turn color.
+				if (turn == PieceColor.RED)
+					turn = PieceColor.BLUE;
+				else
+					turn = PieceColor.RED;
+			} else if(move.isRedConnected() && !move.isBlueConnected()) {
+				waitForReconnect(PieceColor.BLUE);
+			} else if(!move.isRedConnected() && move.isBlueConnected()) {
+				waitForReconnect(PieceColor.RED);
+			} else {
+				// Both players are disconnected destroy this game
+			}
+			
+			
 		}
 	}
 	
-	private void waitForReconnect() {
-		
+	private void waitForReconnect(PieceColor colorToWaitFor) {
+		if(getPlayerOneColor() == colorToWaitFor) {
+			// Waiting for player one to reconnect
+		} else {
+			// Waiting for player two to reconnect
+		}
+	}
+	
+	private PieceColor getPlayerOneColor() {
+		return playerOne.getColor();
+	}
+	
+	private PieceColor getPlayerTwoColor() {
+		return playerTwo.getColor();
 	}
 
 	private MoveSet resolvePlayerMove() {

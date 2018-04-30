@@ -37,6 +37,8 @@ public class Server {
 
 				boolean isReconect = fromPlayerOne.readBoolean();
 				if (isReconect) {
+					// Get game id from client
+					int gameId = fromPlayerOne.readInt();
 					
 				} else {
 
