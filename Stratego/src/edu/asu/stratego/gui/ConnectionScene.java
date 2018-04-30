@@ -29,6 +29,7 @@ public class ConnectionScene {
    
     private Button    submitFields  = new Button("Enter Battlefield");
     private Button    prevButton = new Button("Previous Servers");
+    private Button    prevPlayers = new Button("Previous Nicknames");
     private TextField nicknameField = new TextField();
     private TextField serverIPField = new TextField();
     static  Label     statusLabel   = new Label();
@@ -38,11 +39,15 @@ public class ConnectionScene {
     private final int WIDTH  = 340;
     private final int HEIGHT = 150;
     
-    public static File file;
-    private static BufferedReader stdin;
-    private static ArrayList<String> list;
+    public static File serverFile;
+    private static ArrayList<String> serverList;
     
-    private static int current;
+    
+    public static File playerFile;
+    private static ArrayList<String> playerList;
+    
+    private static int currentServer;
+    private static int currentPlayer;
    
     Scene scene;
    
@@ -52,19 +57,35 @@ public class ConnectionScene {
      */
     ConnectionScene() throws IOException {
     	
-    	//reads from saved ips file and stores in ArrayList list
-    	file = new File("Servers.sav");
-    	file.createNewFile();
-		stdin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
-		list = new ArrayList<String>();
+    	//reads from saved ips file and stores in ArrayList
+    	serverFile = new File("Servers.sav");
+    	serverFile.createNewFile();
+		BufferedReader stdin = new BufferedReader(new InputStreamReader(new FileInputStream(serverFile)));
+		serverList = new ArrayList<String>();
 		String input = stdin.readLine();
-		current = 0;
+		currentServer = 0;
 		while(input != null)
 		{
-			list.add(input);
+			serverList.add(input);
 			input = stdin.readLine();
 		}
 		stdin.close();
+		
+		
+		
+    	//reads from saved players file and stores in ArrayList
+    	playerFile = new File("Players.sav");
+    	playerFile.createNewFile();
+		BufferedReader stdin2 = new BufferedReader(new InputStreamReader(new FileInputStream(playerFile)));
+		playerList = new ArrayList<String>();
+		String input2 = stdin2.readLine();
+		currentPlayer = 0;
+		while(input2 != null)
+		{
+			playerList.add(input2);
+			input2 = stdin2.readLine();
+		}
+		stdin2.close();
 		
 		
         // Create UI.
@@ -75,6 +96,7 @@ public class ConnectionScene {
         gridPane.add(serverIPField, 1, 1);
         
         gridPane.add(prevButton, 2, 1);
+        gridPane.add(prevPlayers, 2, 0);
         
         gridPane.add(submitFields, 1, 2);
        
@@ -93,9 +115,85 @@ public class ConnectionScene {
         // Event Handlers.
         submitFields.setOnAction(e -> Platform.runLater(new ProcessFields()));
         prevButton.setOnAction(e -> Platform.runLater(new prevTexts()));
+        prevPlayers.setOnAction(e -> Platform.runLater(new prevPlayers()));
        
         scene = new Scene(borderPane, WIDTH, HEIGHT);
     }
+    
+    
+    
+    /**
+     * When previous players button is pressed, this handler will
+     * cycle through the list of previous nicknames and display each one
+     * in the nickname field
+     */
+    private class prevPlayers implements Runnable {
+        @Override
+        public void run() {
+            Platform.runLater(() -> {
+            	if(!playerList.isEmpty())
+            	{	
+            		if(currentPlayer >= playerList.size())
+            		{
+            			currentPlayer = 0;
+            		}
+            		
+            		nicknameField.setText(findName(decrypt(playerList.get(currentPlayer))));
+            		
+                    statusLabel.setText(findName(decrypt(playerList.get(currentPlayer))) + ": wins = " + 
+                    		findWin(decrypt(playerList.get(currentPlayer))) + " losses = " +
+                    		findLoss(decrypt(playerList.get(currentPlayer))));
+           		
+            		currentPlayer ++;
+            	}
+            });
+        }
+    }
+    
+  
+    /**
+     * get name from string consisting of name win loss
+     */
+	public static String findName(String enter)
+	{
+		String result = reverse(enter);
+
+		result = result.substring(result.indexOf(" ") + 1);
+
+		result = result.substring(result.indexOf(" ") + 1);
+
+		return reverse(result);
+	}
+
+    /**
+     * get loss from string consisting of name win loss
+     */
+	public static String findLoss(String enter)
+	{
+		String result = reverse(enter);
+
+		result = result.substring(0, result.indexOf(" "));
+
+		return reverse(result);
+	}
+
+    /**
+     * get win from string consisting of name win loss
+     */
+	public static String findWin(String enter)
+	{
+		String result = reverse(enter);
+
+		result = result.substring(result.indexOf(" ") + 1);
+
+		result = result.substring(0, result.indexOf(" "));
+
+		return reverse(result);
+	}
+    
+    
+    
+    
     
     /**
      * When previous servers button is pressed, this handler will
@@ -106,27 +204,27 @@ public class ConnectionScene {
         @Override
         public void run() {
             Platform.runLater(() -> {
-            	if(!list.isEmpty())
+            	if(!serverList.isEmpty())
             	{	
-            		if(current >= list.size())
+            		if(currentServer >= serverList.size())
             		{
-            			current = 0;
+            			currentServer = 0;
             		}
             		
-            		if(!isValid(decrypt(list.get(current))))
+            		if(!isValid(decrypt(serverList.get(currentServer))))
             		{
-            			current ++;
+            			currentServer ++;
             			
-                		if(current >= list.size())
+                		if(currentServer >= serverList.size())
                 		{
-                			current = 0;
+                			currentServer = 0;
                 		}
 	
             		}
             		
-            		serverIPField.setText(decrypt(list.get(current)));
+            		serverIPField.setText(decrypt(serverList.get(currentServer)));
             		
-                	current ++;
+                	currentServer ++;
             	}
             });
         }
@@ -221,6 +319,10 @@ public class ConnectionScene {
                         }
                         else
                         {
+                            Platform.runLater(() -> {
+                                statusLabel.setText("Attempting Connection...");
+                            });	
+                        	                      	
                         	// Attempt connection to server.
                         	ClientSocket.connect(serverIP, 4212);
                         }
@@ -249,6 +351,10 @@ public class ConnectionScene {
             }
         }
     }
+    
+    
+
+    
     
     /**
      * boolean method for determining whether user's ip address is
