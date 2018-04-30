@@ -557,6 +557,9 @@ public class ClientGameManager implements Runnable {
 		return result;
 	}
     
+    /**
+     * get name from string consisting of name win loss
+     */
 	public static String findName(String enter)
 	{
 		String result = reverse(enter);
@@ -568,6 +571,9 @@ public class ClientGameManager implements Runnable {
 		return reverse(result);
 	}
 
+    /**
+     * get loss from string consisting of name win loss
+     */
 	public static String findLoss(String enter)
 	{
 		String result = reverse(enter);
@@ -577,6 +583,9 @@ public class ClientGameManager implements Runnable {
 		return reverse(result);
 	}
 
+    /**
+     * get win from string consisting of name win loss
+     */
 	public static String findWin(String enter)
 	{
 		String result = reverse(enter);
@@ -588,6 +597,10 @@ public class ClientGameManager implements Runnable {
 		return reverse(result);
 	}
 
+    /**
+    *
+    * @return the reverse of the string that was entered
+    */
 	public static String reverse(String enter)
 	{
 		if(enter.length() > 1)

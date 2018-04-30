@@ -37,8 +37,8 @@ public final class ClientSocket {
         socket = new Socket(serverIP, port); //attempt connection
     	
         //take inputs from saved server file
-		stdin = new BufferedReader(new InputStreamReader(new FileInputStream(ConnectionScene.file)));
-		writer = new FileWriter(ConnectionScene.file,true);		
+		stdin = new BufferedReader(new InputStreamReader(new FileInputStream(ConnectionScene.serverFile)));
+		writer = new FileWriter(ConnectionScene.serverFile,true);		
 		list = new ArrayList<String>();		
 		String input = stdin.readLine();		
 		while(input != null)
