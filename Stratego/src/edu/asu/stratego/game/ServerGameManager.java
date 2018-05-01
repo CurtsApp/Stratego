@@ -7,11 +7,12 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 
+import edu.asu.stratego.Server;
+import edu.asu.stratego.Session;
 import edu.asu.stratego.game.board.ServerBoard;
 
 public class ServerGameManager implements Runnable {
 
-	//Got em
 	private final String session;
 
 	private ServerBoard board = new ServerBoard();
@@ -32,10 +33,11 @@ public class ServerGameManager implements Runnable {
 
 	private Socket socketOne;
 	private Socket socketTwo;
-
-	private enum Direction {
-		UP, DOWN, LEFT, RIGHT
-	}
+	
+	private int gameId;
+	
+	private boolean isP1Connected = true;
+	private boolean isP2Connected = true;
 
 	/**
 	 * Creates a new instance of ServerGameManager.
@@ -49,10 +51,11 @@ public class ServerGameManager implements Runnable {
 	 * 
 	 * @see edu.asu.stratego.Server
 	 */
-	public ServerGameManager(Socket sockOne, Socket sockTwo, int sessionNum) {
-		this.session = "Session " + sessionNum + ": ";
-		this.socketOne = sockOne;
-		this.socketTwo = sockTwo;
+	public ServerGameManager(Session session, boolean isReconnect) {
+		this.session = "Session " + session.getId() + ": ";
+		this.socketOne = session.getPlayer1();
+		this.socketTwo = session.getPlayer2();
+		this.gameId = session.getId();
 
 		if (Math.random() < 0.5)
 			this.turn = PieceColor.RED;
@@ -61,8 +64,8 @@ public class ServerGameManager implements Runnable {
 	}
 
 	/**
-	 * See ClientGameManager's run() method to understand how the server
-	 * interacts with the client.
+	 * See ClientGameManager's run() method to understand how the server interacts
+	 * with the client.
 	 * 
 	 * @see edu.asu.stratego.game.ClientGameManager
 	 */
@@ -75,13 +78,9 @@ public class ServerGameManager implements Runnable {
 		playGame();
 	}
 
-	public ServerBoard getBoard() {
-		return board;
-	}
-
 	/**
-	 * Establish IO object streams to facilitate communication between the
-	 * client and server.
+	 * Establish IO object streams to facilitate communication between the client
+	 * and server.
 	 */
 	private void createIOStreams() {
 		try {
@@ -98,9 +97,8 @@ public class ServerGameManager implements Runnable {
 	}
 
 	/**
-	 * Receive player information from the clients. Determines the players'
-	 * colors, and sends the player information of the opponents back to the
-	 * clients.
+	 * Receive player information from the clients. Determines the players' colors,
+	 * and sends the player information of the opponents back to the clients.
 	 */
 	private void exchangePlayers() {
 		try {
@@ -163,146 +161,229 @@ public class ServerGameManager implements Runnable {
 
 			toPlayerOne.writeObject(winCondition);
 			toPlayerTwo.writeObject(winCondition);
+			
+			toPlayerOne.writeObject(gameId);
+			toPlayerTwo.writeObject(gameId);
 		} catch (ClassNotFoundException | IOException e) {
-			// TODO Handle this exception somehow...
 			e.printStackTrace();
 		}
 
 	}
 
 	private void playGame() {
-		while (true) {
-			try {
-				// Send player turn color to clients.
-				toPlayerOne.writeObject(turn);
-				toPlayerTwo.writeObject(turn);
+		boolean gameIsFinished = false;
+		while (!gameIsFinished) {
+			sendPlayerTurnColor(turn);
 
-				// Get turn from client.
-				if (playerOne.getColor() == turn) {
-					move = (Move) fromPlayerOne.readObject();
-					move.setStart(9 - move.getStart().x, 9 - move.getStart().y);
-					move.setEnd(9 - move.getEnd().x, 9 - move.getEnd().y);
-				} else {
-					move = (Move) fromPlayerTwo.readObject();
-				}
+			move = getGameData(turn);
+			
+			// Check if both players are connected
+			if(move.isRedConnected() && move.isBlueConnected()) {
+				// Both are connected continue as normal
+				MoveSet moves = resolvePlayerMove();
+				Move moveToPlayerOne = moves.playerOneMove;
+				Move moveToPlayerTwo = moves.playerTwoMove;
 
-				Move moveToPlayerOne = new Move(), moveToPlayerTwo = new Move();
-
-				// Register move on the board.
-				// If there is no piece at the end (normal move, no attack)
-				if (board.getSquare(move.getEnd().x, move.getEnd().y).getPiece() == null) {
-					Piece piece = board.getSquare(move.getStart().x, move.getStart().y).getPiece();
-
-					board.getSquare(move.getStart().x, move.getStart().y).setPiece(null);
-					board.getSquare(move.getEnd().x, move.getEnd().y).setPiece(piece);
-
-					// Rotate the move 180 degrees before sending.
-					moveToPlayerOne.setStart(new Point(9 - move.getStart().x, 9 - move.getStart().y));
-					moveToPlayerOne.setEnd(new Point(9 - move.getEnd().x, 9 - move.getEnd().y));
-					moveToPlayerOne.setMoveColor(move.getMoveColor());
-					moveToPlayerOne.setStartPiece(null);
-					moveToPlayerOne.setEndPiece(piece);
-
-					moveToPlayerTwo.setStart(new Point(move.getStart().x, move.getStart().y));
-					moveToPlayerTwo.setEnd(new Point(move.getEnd().x, move.getEnd().y));
-					moveToPlayerTwo.setMoveColor(move.getMoveColor());
-					moveToPlayerTwo.setStartPiece(null);
-					moveToPlayerTwo.setEndPiece(piece);
-				} else {
-					Piece attackingPiece = board.getSquare(move.getStart().x, move.getStart().y).getPiece();
-					Piece defendingPiece = board.getSquare(move.getEnd().x, move.getEnd().y).getPiece();
-
-					BattleOutcome outcome = attackingPiece.getPieceType().attack(defendingPiece.getPieceType());
-
-					moveToPlayerOne.setAttackMove(true);
-					moveToPlayerTwo.setAttackMove(true);
-
-					if (outcome == BattleOutcome.WIN) {
-						board.getSquare(move.getEnd().x, move.getEnd().y)
-								.setPiece(board.getSquare(move.getStart().x, move.getStart().y).getPiece());
-						board.getSquare(move.getStart().x, move.getStart().y).setPiece(null);
-
-						// Rotate the move 180 degrees before sending.
-						moveToPlayerOne.setStart(new Point(9 - move.getStart().x, 9 - move.getStart().y));
-						moveToPlayerOne.setEnd(new Point(9 - move.getEnd().x, 9 - move.getEnd().y));
-						moveToPlayerOne.setMoveColor(move.getMoveColor());
-						moveToPlayerOne.setStartPiece(null);
-						moveToPlayerOne.setEndPiece(attackingPiece);
-						moveToPlayerOne.setAttackWin(true);
-						moveToPlayerOne.setDefendWin(false);
-
-						moveToPlayerTwo.setStart(new Point(move.getStart().x, move.getStart().y));
-						moveToPlayerTwo.setEnd(new Point(move.getEnd().x, move.getEnd().y));
-						moveToPlayerTwo.setMoveColor(move.getMoveColor());
-						moveToPlayerTwo.setStartPiece(null);
-						moveToPlayerTwo.setEndPiece(attackingPiece);
-						moveToPlayerTwo.setAttackWin(true);
-						moveToPlayerTwo.setDefendWin(false);
-					} else if (outcome == BattleOutcome.LOSE) {
-						board.getSquare(move.getStart().x, move.getStart().y).setPiece(null);
-
-						// Rotate the move 180 degrees before sending.
-						moveToPlayerOne.setStart(new Point(9 - move.getStart().x, 9 - move.getStart().y));
-						moveToPlayerOne.setEnd(new Point(9 - move.getEnd().x, 9 - move.getEnd().y));
-						moveToPlayerOne.setMoveColor(move.getMoveColor());
-						moveToPlayerOne.setStartPiece(null);
-						moveToPlayerOne.setEndPiece(defendingPiece);
-						moveToPlayerOne.setAttackWin(false);
-						moveToPlayerOne.setDefendWin(true);
-
-						moveToPlayerTwo.setStart(new Point(move.getStart().x, move.getStart().y));
-						moveToPlayerTwo.setEnd(new Point(move.getEnd().x, move.getEnd().y));
-						moveToPlayerTwo.setMoveColor(move.getMoveColor());
-						moveToPlayerTwo.setStartPiece(null);
-						moveToPlayerTwo.setEndPiece(defendingPiece);
-						moveToPlayerTwo.setAttackWin(false);
-						moveToPlayerTwo.setDefendWin(true);
-					} else if (outcome == BattleOutcome.DRAW) {
-						board.getSquare(move.getStart().x, move.getStart().y).setPiece(null);
-						board.getSquare(move.getEnd().x, move.getEnd().y).setPiece(null);
-
-						// Rotate the move 180 degrees before sending.
-						moveToPlayerOne.setStart(new Point(9 - move.getStart().x, 9 - move.getStart().y));
-						moveToPlayerOne.setEnd(new Point(9 - move.getEnd().x, 9 - move.getEnd().y));
-						moveToPlayerOne.setMoveColor(move.getMoveColor());
-						moveToPlayerOne.setStartPiece(null);
-						moveToPlayerOne.setEndPiece(null);
-						moveToPlayerOne.setAttackWin(false);
-						moveToPlayerOne.setDefendWin(false);
-
-						moveToPlayerTwo.setStart(new Point(move.getStart().x, move.getStart().y));
-						moveToPlayerTwo.setEnd(new Point(move.getEnd().x, move.getEnd().y));
-						moveToPlayerTwo.setMoveColor(move.getMoveColor());
-						moveToPlayerTwo.setStartPiece(null);
-						moveToPlayerTwo.setEndPiece(null);
-						moveToPlayerTwo.setAttackWin(false);
-						moveToPlayerTwo.setDefendWin(false);
-					}
-				}
-
+				
+				// Check win conditions.
 				GameStatus winCondition = checkWinCondition();
 
-				toPlayerOne.writeObject(moveToPlayerOne);
-				toPlayerTwo.writeObject(moveToPlayerTwo);
-
-				toPlayerOne.writeObject(winCondition);
-				toPlayerTwo.writeObject(winCondition);
-
+				sendGameData(moveToPlayerOne, moveToPlayerTwo, winCondition);
+				
+				if(winCondition != GameStatus.IN_PROGRESS) {
+					this.finishGame();
+					gameIsFinished = true;
+				}
+				
 				// Change turn color.
 				if (turn == PieceColor.RED)
 					turn = PieceColor.BLUE;
 				else
 					turn = PieceColor.RED;
-
-				// Check win conditions.
-			} catch (IOException | ClassNotFoundException e) {
-				System.out.println(session + "Error occured during network I/O");
-				return;
+			} else if(move.isRedConnected() && !move.isBlueConnected()) {
+				waitForReconnect(PieceColor.BLUE);
+			} else if(!move.isRedConnected() && move.isBlueConnected()) {
+				waitForReconnect(PieceColor.RED);
+			} else {
+				finishGame();
+				gameIsFinished = true;
 			}
+			
+			
+		}
+	}
+	
+	private void finishGame() {
+		Server.finishSession(gameId);
+	}
+	
+	private void waitForReconnect(PieceColor colorToWaitFor) {
+		if(getPlayerOneColor() == colorToWaitFor) {
+			// Waiting for player one to reconnect
+		} else {
+			// Waiting for player two to reconnect
+		}
+	}
+	
+	private PieceColor getPlayerOneColor() {
+		return playerOne.getColor();
+	}
+	
+	private PieceColor getPlayerTwoColor() {
+		return playerTwo.getColor();
+	}
+
+	private MoveSet resolvePlayerMove() {
+		Move moveToPlayerOne = new Move(), moveToPlayerTwo = new Move();
+
+		// Register move on the board.
+		// If there is no piece at the end (normal move, no attack)
+		if (board.getSquare(move.getEnd().x, move.getEnd().y).getPiece() == null) {
+			Piece piece = board.getSquare(move.getStart().x, move.getStart().y).getPiece();
+
+			board.getSquare(move.getStart().x, move.getStart().y).setPiece(null);
+			board.getSquare(move.getEnd().x, move.getEnd().y).setPiece(piece);
+
+			// Rotate the move 180 degrees before sending.
+			moveToPlayerOne.setStart(new Point(9 - move.getStart().x, 9 - move.getStart().y));
+			moveToPlayerOne.setEnd(new Point(9 - move.getEnd().x, 9 - move.getEnd().y));
+			moveToPlayerOne.setMoveColor(move.getMoveColor());
+			moveToPlayerOne.setStartPiece(null);
+			moveToPlayerOne.setEndPiece(piece);
+
+			moveToPlayerTwo.setStart(new Point(move.getStart().x, move.getStart().y));
+			moveToPlayerTwo.setEnd(new Point(move.getEnd().x, move.getEnd().y));
+			moveToPlayerTwo.setMoveColor(move.getMoveColor());
+			moveToPlayerTwo.setStartPiece(null);
+			moveToPlayerTwo.setEndPiece(piece);
+		} else {
+			Piece attackingPiece = board.getSquare(move.getStart().x, move.getStart().y).getPiece();
+			Piece defendingPiece = board.getSquare(move.getEnd().x, move.getEnd().y).getPiece();
+
+			BattleOutcome outcome = attackingPiece.getPieceType().attack(defendingPiece.getPieceType());
+
+			moveToPlayerOne.setAttackMove(true);
+			moveToPlayerTwo.setAttackMove(true);
+
+			if (outcome == BattleOutcome.WIN) {
+				board.getSquare(move.getEnd().x, move.getEnd().y)
+						.setPiece(board.getSquare(move.getStart().x, move.getStart().y).getPiece());
+				board.getSquare(move.getStart().x, move.getStart().y).setPiece(null);
+
+				// Rotate the move 180 degrees before sending.
+				moveToPlayerOne.setStart(new Point(9 - move.getStart().x, 9 - move.getStart().y));
+				moveToPlayerOne.setEnd(new Point(9 - move.getEnd().x, 9 - move.getEnd().y));
+				moveToPlayerOne.setMoveColor(move.getMoveColor());
+				moveToPlayerOne.setStartPiece(null);
+				moveToPlayerOne.setEndPiece(attackingPiece);
+				moveToPlayerOne.setAttackWin(true);
+				moveToPlayerOne.setDefendWin(false);
+
+				moveToPlayerTwo.setStart(new Point(move.getStart().x, move.getStart().y));
+				moveToPlayerTwo.setEnd(new Point(move.getEnd().x, move.getEnd().y));
+				moveToPlayerTwo.setMoveColor(move.getMoveColor());
+				moveToPlayerTwo.setStartPiece(null);
+				moveToPlayerTwo.setEndPiece(attackingPiece);
+				moveToPlayerTwo.setAttackWin(true);
+				moveToPlayerTwo.setDefendWin(false);
+			} else if (outcome == BattleOutcome.LOSE) {
+				board.getSquare(move.getStart().x, move.getStart().y).setPiece(null);
+
+				// Rotate the move 180 degrees before sending.
+				moveToPlayerOne.setStart(new Point(9 - move.getStart().x, 9 - move.getStart().y));
+				moveToPlayerOne.setEnd(new Point(9 - move.getEnd().x, 9 - move.getEnd().y));
+				moveToPlayerOne.setMoveColor(move.getMoveColor());
+				moveToPlayerOne.setStartPiece(null);
+				moveToPlayerOne.setEndPiece(defendingPiece);
+				moveToPlayerOne.setAttackWin(false);
+				moveToPlayerOne.setDefendWin(true);
+
+				moveToPlayerTwo.setStart(new Point(move.getStart().x, move.getStart().y));
+				moveToPlayerTwo.setEnd(new Point(move.getEnd().x, move.getEnd().y));
+				moveToPlayerTwo.setMoveColor(move.getMoveColor());
+				moveToPlayerTwo.setStartPiece(null);
+				moveToPlayerTwo.setEndPiece(defendingPiece);
+				moveToPlayerTwo.setAttackWin(false);
+				moveToPlayerTwo.setDefendWin(true);
+			} else if (outcome == BattleOutcome.DRAW) {
+				board.getSquare(move.getStart().x, move.getStart().y).setPiece(null);
+				board.getSquare(move.getEnd().x, move.getEnd().y).setPiece(null);
+
+				// Rotate the move 180 degrees before sending.
+				moveToPlayerOne.setStart(new Point(9 - move.getStart().x, 9 - move.getStart().y));
+				moveToPlayerOne.setEnd(new Point(9 - move.getEnd().x, 9 - move.getEnd().y));
+				moveToPlayerOne.setMoveColor(move.getMoveColor());
+				moveToPlayerOne.setStartPiece(null);
+				moveToPlayerOne.setEndPiece(null);
+				moveToPlayerOne.setAttackWin(false);
+				moveToPlayerOne.setDefendWin(false);
+
+				moveToPlayerTwo.setStart(new Point(move.getStart().x, move.getStart().y));
+				moveToPlayerTwo.setEnd(new Point(move.getEnd().x, move.getEnd().y));
+				moveToPlayerTwo.setMoveColor(move.getMoveColor());
+				moveToPlayerTwo.setStartPiece(null);
+				moveToPlayerTwo.setEndPiece(null);
+				moveToPlayerTwo.setAttackWin(false);
+				moveToPlayerTwo.setDefendWin(false);
+			}
+		}
+
+		return new MoveSet(moveToPlayerOne, moveToPlayerTwo);
+	}
+
+	private void sendPlayerTurnColor(PieceColor currentTurn) {
+		// Send player turn color to clients.
+		try {
+			toPlayerOne.writeObject(turn);
+		} catch (Exception e) {
+			// Player One Discconected
+		}
+
+		try {
+			toPlayerTwo.writeObject(turn);
+		} catch (Exception e) {
+			// Player two Disconnected
 		}
 	}
 
-	public GameStatus checkWinCondition() {
+	private void sendGameData(Move moveToPlayerOne, Move moveToPlayerTwo, GameStatus winCondition) {
+		try {
+			toPlayerOne.writeObject(moveToPlayerOne);
+			toPlayerOne.writeObject(winCondition);
+		} catch (Exception e) {
+			// Player One Disconnected
+		}
+
+		try {
+			toPlayerTwo.writeObject(moveToPlayerTwo);
+			toPlayerTwo.writeObject(winCondition);
+		} catch (Exception e) {
+			// Player Two Disconnected
+		}
+	}
+
+	private Move getGameData(PieceColor turn) {
+		// Get turn from client.
+		if (playerOne.getColor() == turn) {
+			try {
+				move = (Move) fromPlayerOne.readObject();
+			} catch (Exception e) {
+				// Player One Discconected
+			}
+			move.setStart(9 - move.getStart().x, 9 - move.getStart().y);
+			move.setEnd(9 - move.getEnd().x, 9 - move.getEnd().y);
+		} else {
+			try {
+				move = (Move) fromPlayerTwo.readObject();
+			} catch (Exception e) {
+				// Player Two Discconnected
+			}
+		}
+		
+		return move;
+	}
+
+	private GameStatus checkWinCondition() {
 		if (!hasAvailableMoves(PieceColor.RED))
 			return GameStatus.RED_NO_MOVES;
 
@@ -318,7 +399,7 @@ public class ServerGameManager implements Runnable {
 		return GameStatus.IN_PROGRESS;
 	}
 
-	public boolean isCaptured(PieceColor inColor) {
+	private boolean isCaptured(PieceColor inColor) {
 		if (playerOne.getColor() == inColor) {
 			if (board.getSquare(playerOneFlag.x, playerOneFlag.y).getPiece().getPieceType() != PieceType.FLAG)
 				return true;
@@ -330,7 +411,7 @@ public class ServerGameManager implements Runnable {
 		return false;
 	}
 
-	public boolean hasAvailableMoves(PieceColor inColor) {
+	private boolean hasAvailableMoves(PieceColor inColor) {
 		for (int row = 0; row < 10; ++row) {
 			for (int col = 0; col < 10; ++col) {
 				if (board.getSquare(row, col).getPiece() != null
@@ -345,23 +426,7 @@ public class ServerGameManager implements Runnable {
 		return false;
 	}
 
-	/*
-	 * private boolean checkRowForMoves(int row, int col, Piece piece,
-	 * ServerBoard board, Direction dir) { int max = 1; PieceColor inColor =
-	 * piece.getPieceColor(); if (piece.getPieceType() == PieceType.SCOUT) { max
-	 * = 8; } int modifier = 1, colMod = 0, rowMod = 0; switch (dir) { case UP:
-	 * modifier = -1; rowMod = modifier; break; case DOWN: modifier = 1; rowMod
-	 * = modifier; break; case LEFT: modifier = -1; colMod = modifier; break;
-	 * case RIGHT: modifier = 1; colMod = modifier; break; default: break; }
-	 * //Negative Row (UP) for(int i = 0; i < max; i++) { if (rowMod != 0) { row
-	 * = row + rowMod; rowMod += modifier; } if (colMod != 0) { col = col +
-	 * colMod; colMod += modifier; } if (isInBounds(row, col) && (!isLake(row,
-	 * col) || (!isNullPiece(row, col, board) && !isOpponentPiece(row, col,
-	 * inColor, board)))) { if (isNullPiece(row, col, board) ||
-	 * isOpponentPiece(row, col, inColor, board)) { return true; } } } return
-	 * false; }
-	 */
-	public ArrayList<Point> computeValidMoves(int row, int col, PieceColor inColor) {
+	private ArrayList<Point> computeValidMoves(int row, int col, PieceColor inColor) {
 		int max = 1;
 		PieceType pieceType = board.getSquare(row, col).getPiece().getPieceType();
 		if (pieceType == PieceType.SCOUT)
@@ -431,7 +496,7 @@ public class ServerGameManager implements Runnable {
 		return validMoves;
 	}
 
-	public static boolean isLake(int row, int col) {
+	private static boolean isLake(int row, int col) {
 		if (col == 2 || col == 3 || col == 6 || col == 7) {
 			if (row == 4 || row == 5)
 				return true;
@@ -439,7 +504,7 @@ public class ServerGameManager implements Runnable {
 		return false;
 	}
 
-	public static boolean isInBounds(int row, int col) {
+	private static boolean isInBounds(int row, int col) {
 		if (row < 0 || row > 9)
 			return false;
 		if (col < 0 || col > 9)
@@ -448,7 +513,7 @@ public class ServerGameManager implements Runnable {
 		return true;
 	}
 
-	public boolean isOpponentPiece(int row, int col, PieceColor inColor) {
+	private boolean isOpponentPiece(int row, int col, PieceColor inColor) {
 		return board.getSquare(row, col).getPiece().getPieceColor() != inColor;
 	}
 

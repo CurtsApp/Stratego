@@ -64,6 +64,22 @@ public final class ClientSocket {
         }  
     }    
     
+    public static void reconnect() {
+    	try {
+			socket = new Socket(ClientFileManager.getLastGameIp(), ClientFileManager.getLastPort());
+			
+			
+		} catch (UnknownHostException e) {
+
+			e.printStackTrace();
+		} catch (IOException e) {
+
+			e.printStackTrace();
+		}
+    }
+    
+
+    
     /**
     * encrypts server ip to prevent easy tampering
     *

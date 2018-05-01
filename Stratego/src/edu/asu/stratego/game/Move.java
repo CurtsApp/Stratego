@@ -19,6 +19,25 @@ public class Move implements Serializable {
     private boolean attackWin;
     private boolean defendWin;
     
+    private boolean isRedConnected = true;
+    private boolean isBlueConnected = true;
+    
+    public boolean isRedConnected() {
+    	return isRedConnected;
+    }
+    
+    public boolean isBlueConnected() {
+    	return isBlueConnected;
+    }
+    
+    public void setRedConnection(boolean connectionStatus) {
+    	isRedConnected = connectionStatus;
+    }
+    
+    public void setBlueConnection(boolean connectionStatus) {
+    	isBlueConnected = connectionStatus;
+    }
+    
     public boolean isAttackMove() {
     	return isAttack;
     }

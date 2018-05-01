@@ -1,5 +1,6 @@
-package edu.asu.stratego.tests;
+package edu.asu.stratego.test;
 
+import edu.asu.stratego.Session;
 import edu.asu.stratego.game.*;
 import edu.asu.stratego.game.board.ServerSquare;
 import org.junit.Before;
@@ -16,7 +17,7 @@ public class ServerGameManagerTest {
 
     @Before
     public void setUp() throws Exception {
-        serverGameManager = new ServerGameManager(null, null, 1);
+        serverGameManager = new ServerGameManager(new Session(null, null), false);
     }
 
     private void clearBoard() {

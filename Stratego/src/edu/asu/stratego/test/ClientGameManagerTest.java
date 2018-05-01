@@ -1,5 +1,6 @@
-package edu.asu.stratego.tests;
+package edu.asu.stratego.test;
 
+import edu.asu.stratego.Session;
 import edu.asu.stratego.game.ClientGameManager;
 import edu.asu.stratego.game.ClientSocket;
 import edu.asu.stratego.game.ServerGameManager;
@@ -49,7 +50,7 @@ public class ClientGameManagerTest {
 			startPseudoClient();
 			Socket playerOne = listener.accept();
 			Socket playerTwo = listener.accept();
-			new ServerGameManager(playerOne, playerTwo, 0);
+			new ServerGameManager(new Session(playerOne, playerTwo), false);
 			return true;
 		} catch (Exception e) {
 			return false;
