@@ -10,7 +10,7 @@ public class Session {
 	private int id;
 	public LinkedBlockingQueue<Socket> sessionCommunicaton;
 	
-	Session(Socket player1, Socket player2) {
+	public Session(Socket player1, Socket player2) {
 		this.player1 = player1;
 		this.player2 = player2;
 		this.id = 1 + Session.ID;
