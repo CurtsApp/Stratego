@@ -1,5 +1,5 @@
 package edu.asu.stratego.game;
-
+//hello
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -22,6 +22,13 @@ import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 
 /**
@@ -691,6 +698,8 @@ public class ClientGameManager implements Runnable {
 					}
 				}
 			}
+			// Reveals end game "victory" or "defeat" message
+			new EndGameScene();
 		});
 	}
 
@@ -735,6 +744,79 @@ public class ClientGameManager implements Runnable {
 				Game.getBoard().getSquare(Game.getMove().getEnd().x, Game.getMove().getEnd().y).getPiecePane()
 						.getPiece().setRotate(0.0);
 			}
+		}
+	}
+	
+	private class DisconnectionScene {
+
+		private final int WINDOW_WIDTH = 300;
+		private final int WINDOW_HEIGHT = 150;
+
+		Stage disconnect;
+
+		/**
+		 * Creates a new instance of DisconnectionScene.
+		 */
+		public DisconnectionScene() {
+			// Create UI.
+			disconnect = new Stage();
+			disconnect.initModality(Modality.APPLICATION_MODAL);
+			disconnect.initOwner(stage);
+			Button btn = new Button("Quit");
+			btn.setOnAction(new EventHandler<ActionEvent>() {
+				@Override
+				public void handle(ActionEvent e) {
+					revealAll();
+				}
+			});
+
+			StackPane dialog = new StackPane();
+			dialog.getChildren().add(new Label("Opponent disconnected..."));
+			dialog.getChildren().add(btn);
+
+			Scene dialogScene = new Scene(dialog, WINDOW_WIDTH, WINDOW_HEIGHT);
+			dialogScene.setFill(Color.LIGHTGRAY);
+			disconnect.setScene(dialogScene);
+			disconnect.show();
+		}
+	}
+
+	private class EndGameScene {
+		private final int WINDOW_WIDTH = 300;
+		private final int WINDOW_HEIGHT = 150;
+
+		Stage endgame;
+
+		/**
+		 * Creates a new instance of EndGameScene.
+		 */
+		public EndGameScene() {
+			// Create UI.
+			endgame = new Stage();
+			endgame.initModality(Modality.APPLICATION_MODAL);
+			endgame.initOwner(stage);
+			StackPane dialog = new StackPane();
+
+			if (Game.getPlayer().getColor() == PieceColor.RED) {
+				if ((Game.getStatus() == GameStatus.BLUE_CAPTURED) || (Game.getStatus() == GameStatus.BLUE_NO_MOVES)
+						|| (Game.getStatus() == GameStatus.BLUE_FLAG_UNREACHABLE)) {
+					dialog.getChildren().add(new Label("Congratulations! You Win!"));
+				}else {
+					dialog.getChildren().add(new Label("Sorry, You Lose!"));
+				}
+			} else if (Game.getPlayer().getColor() == PieceColor.BLUE) {
+				if ((Game.getStatus() == GameStatus.RED_CAPTURED) || (Game.getStatus() == GameStatus.RED_NO_MOVES)
+						|| (Game.getStatus() == GameStatus.RED_FLAG_UNREACHABLE)) {
+					dialog.getChildren().add(new Label("Congratulations! You Win!"));
+				} else {
+					dialog.getChildren().add(new Label("Sorry, You Lose!"));
+				}
+			} 
+
+			Scene dialogScene = new Scene(dialog, WINDOW_WIDTH, WINDOW_HEIGHT);
+			dialogScene.setFill(Color.LIGHTGRAY);
+			endgame.setScene(dialogScene);
+			endgame.show();
 		}
 	}
 }
