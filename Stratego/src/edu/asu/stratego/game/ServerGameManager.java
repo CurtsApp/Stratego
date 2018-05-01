@@ -11,6 +11,7 @@ import edu.asu.stratego.game.board.ServerBoard;
 
 public class ServerGameManager implements Runnable {
 
+	//Got em
 	private final String session;
 
 	private ServerBoard board = new ServerBoard();
