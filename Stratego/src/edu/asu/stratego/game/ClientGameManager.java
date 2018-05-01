@@ -66,11 +66,8 @@ public class ClientGameManager implements Runnable {
 		} else {
 			
 			connectToServer();
-			System.out.println("Connected to server");
 			sendIsReconnectData();
-			System.out.println("Reconnection data sent");
 			waitForOpponent();
-			System.out.println("Finished waiting for opponent");
 			setupBoard();
 			playGame(false);
 		}
@@ -252,15 +249,18 @@ public class ClientGameManager implements Runnable {
 			e1.printStackTrace();
 		}
         
-        // Get game id from server
-        try {
-			int gameId = (int) fromServer.readObject();
-			ClientFileManager.writeSessionData(ClientSocket.getInstance().getInetAddress().toString(), ClientSocket.getInstance().getPort(), gameId);
-			System.out.println("Game Info Saved");
-		} catch (ClassNotFoundException | IOException e1) {
-			// TODO Handle this somehow...
-			e1.printStackTrace();
-		}
+        if(!wasReconnect) {
+        	 // Get game id from server
+            try {
+    			int gameId = (int) fromServer.readObject();
+    			ClientFileManager.writeSessionData(ClientSocket.getInstance().getInetAddress().toString(), ClientSocket.getInstance().getPort(), gameId);
+    			System.out.println("Game Info Saved");
+    		} catch (ClassNotFoundException | IOException e1) {
+    			// TODO Handle this somehow...
+    			e1.printStackTrace();
+    		}
+        }
+       
         
         
         
