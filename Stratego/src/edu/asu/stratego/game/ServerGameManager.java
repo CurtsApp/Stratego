@@ -6,6 +6,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import edu.asu.stratego.Server;
 import edu.asu.stratego.Session;
@@ -38,6 +39,10 @@ public class ServerGameManager implements Runnable {
 	
 	private boolean isP1Connected = true;
 	private boolean isP2Connected = true;
+	
+	private LinkedBlockingQueue<Socket> sessionCommunicaton;
+	
+	
 
 	/**
 	 * Creates a new instance of ServerGameManager.
@@ -56,7 +61,9 @@ public class ServerGameManager implements Runnable {
 		this.socketOne = session.getPlayer1();
 		this.socketTwo = session.getPlayer2();
 		this.gameId = session.getId();
-
+		
+		this.sessionCommunicaton = session.sessionCommunicaton;
+		
 		if (Math.random() < 0.5)
 			this.turn = PieceColor.RED;
 		else
@@ -234,10 +241,42 @@ public class ServerGameManager implements Runnable {
 	}
 	
 	private void waitForReconnect(PieceColor colorToWaitFor) {
+	
+		GameStatus status;
+		if(colorToWaitFor == PieceColor.BLUE) {
+			status = GameStatus.BLUE_DISCONNECTED;
+		} else {
+			status = GameStatus.RED_DISCONNECTED;
+		}
+		
+		// Alert the remain player that a player has disconnected,
+		// in the same format as a normal move
+		sendDisconnectData(move, colorToWaitFor, status);
+		
 		if(getPlayerOneColor() == colorToWaitFor) {
 			// Waiting for player one to reconnect
+			Socket reconnectedPlayer = null;
+			while(!sessionCommunicaton.isEmpty()) {
+				try {
+					reconnectedPlayer = sessionCommunicaton.take();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			socketOne = reconnectedPlayer;
 		} else {
 			// Waiting for player two to reconnect
+			Socket reconnectedPlayer = null;
+			while(!sessionCommunicaton.isEmpty()) {
+				try {
+					reconnectedPlayer = sessionCommunicaton.take();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			socketTwo = reconnectedPlayer;
 		}
 	}
 	
@@ -362,6 +401,24 @@ public class ServerGameManager implements Runnable {
 		}
 	}
 
+	private void sendDisconnectData(Move moveToRemainingPlayer, PieceColor disconnectedPlayer, GameStatus status) {
+		if(disconnectedPlayer == playerOne.getColor()) {
+			try {
+				toPlayerTwo.writeObject(moveToRemainingPlayer);
+				toPlayerTwo.writeObject(status);
+			} catch (Exception e) {
+				// Player Two Disconnected
+			}
+		} else {
+			try {
+				toPlayerOne.writeObject(moveToRemainingPlayer);
+				toPlayerOne.writeObject(status);
+			} catch (Exception e) {
+				// Player One Disconnected
+			}
+		}
+	}
+	
 	private void sendGameData(Move moveToPlayerOne, Move moveToPlayerTwo, GameStatus winCondition) {
 		try {
 			toPlayerOne.writeObject(moveToPlayerOne);
@@ -383,16 +440,31 @@ public class ServerGameManager implements Runnable {
 		if (playerOne.getColor() == turn) {
 			try {
 				move = (Move) fromPlayerOne.readObject();
+				move.setStart(9 - move.getStart().x, 9 - move.getStart().y);
+				move.setEnd(9 - move.getEnd().x, 9 - move.getEnd().y);
 			} catch (Exception e) {
 				// Player One Discconected
+				move = new Move();
+				if(playerOne.getColor() == PieceColor.BLUE) {
+					move.setBlueConnection(false);
+				} else {
+					move.setRedConnection(false);
+				}
+				
 			}
-			move.setStart(9 - move.getStart().x, 9 - move.getStart().y);
-			move.setEnd(9 - move.getEnd().x, 9 - move.getEnd().y);
+			
 		} else {
 			try {
 				move = (Move) fromPlayerTwo.readObject();
 			} catch (Exception e) {
 				// Player Two Discconnected
+				move = new Move();
+				if(playerTwo.getColor() == PieceColor.BLUE) {
+					move.setBlueConnection(false);
+				} else {
+					move.setRedConnection(false);
+				}
+				
 			}
 		}
 		
