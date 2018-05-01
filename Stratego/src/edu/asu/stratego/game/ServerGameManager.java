@@ -62,6 +62,17 @@ public class ServerGameManager implements Runnable {
 		else
 			this.turn = PieceColor.BLUE;
 	}
+	
+	public ServerGameManager(Socket sockOne, Socket sockTwo, int sessionNum) {
+		this.session = "Session " + sessionNum + ": ";
+		this.socketOne = sockOne;
+		this.socketTwo = sockTwo;
+
+		if (Math.random() < 0.5)
+			this.turn = PieceColor.RED;
+		else
+			this.turn = PieceColor.BLUE;
+	}
 
 	/**
 	 * See ClientGameManager's run() method to understand how the server interacts
@@ -77,6 +88,11 @@ public class ServerGameManager implements Runnable {
 
 		playGame();
 	}
+	
+	public ServerBoard getBoard() {
+		return board;
+	}
+
 
 	/**
 	 * Establish IO object streams to facilitate communication between the client
@@ -383,7 +399,7 @@ public class ServerGameManager implements Runnable {
 		return move;
 	}
 
-	private GameStatus checkWinCondition() {
+	public GameStatus checkWinCondition() {
 		if (!hasAvailableMoves(PieceColor.RED))
 			return GameStatus.RED_NO_MOVES;
 
@@ -399,7 +415,7 @@ public class ServerGameManager implements Runnable {
 		return GameStatus.IN_PROGRESS;
 	}
 
-	private boolean isCaptured(PieceColor inColor) {
+	public boolean isCaptured(PieceColor inColor) {
 		if (playerOne.getColor() == inColor) {
 			if (board.getSquare(playerOneFlag.x, playerOneFlag.y).getPiece().getPieceType() != PieceType.FLAG)
 				return true;
@@ -411,7 +427,7 @@ public class ServerGameManager implements Runnable {
 		return false;
 	}
 
-	private boolean hasAvailableMoves(PieceColor inColor) {
+	public boolean hasAvailableMoves(PieceColor inColor) {
 		for (int row = 0; row < 10; ++row) {
 			for (int col = 0; col < 10; ++col) {
 				if (board.getSquare(row, col).getPiece() != null
@@ -426,7 +442,7 @@ public class ServerGameManager implements Runnable {
 		return false;
 	}
 
-	private ArrayList<Point> computeValidMoves(int row, int col, PieceColor inColor) {
+	public ArrayList<Point> computeValidMoves(int row, int col, PieceColor inColor) {
 		int max = 1;
 		PieceType pieceType = board.getSquare(row, col).getPiece().getPieceType();
 		if (pieceType == PieceType.SCOUT)
@@ -496,7 +512,7 @@ public class ServerGameManager implements Runnable {
 		return validMoves;
 	}
 
-	private static boolean isLake(int row, int col) {
+	public static boolean isLake(int row, int col) {
 		if (col == 2 || col == 3 || col == 6 || col == 7) {
 			if (row == 4 || row == 5)
 				return true;
@@ -504,7 +520,7 @@ public class ServerGameManager implements Runnable {
 		return false;
 	}
 
-	private static boolean isInBounds(int row, int col) {
+	public static boolean isInBounds(int row, int col) {
 		if (row < 0 || row > 9)
 			return false;
 		if (col < 0 || col > 9)
@@ -513,7 +529,7 @@ public class ServerGameManager implements Runnable {
 		return true;
 	}
 
-	private boolean isOpponentPiece(int row, int col, PieceColor inColor) {
+	public boolean isOpponentPiece(int row, int col, PieceColor inColor) {
 		return board.getSquare(row, col).getPiece().getPieceColor() != inColor;
 	}
 
