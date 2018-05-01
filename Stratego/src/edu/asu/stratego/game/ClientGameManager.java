@@ -103,12 +103,9 @@ public class ClientGameManager implements Runnable {
 			
 			toServer.writeObject(isReconnect);
 			
-			System.out.println("Boolean sent");
+			// The server is looking for this branch if needed
 			if(isReconnect) {
-				System.out.println("Was Reconnect");
 				toServer.writeInt(ClientFileManager.getLastGameId());
-			} else {
-				System.out.println("WAs not reconnect");
 			}
 		} catch (Exception e) {
 			System.out.println(e);
