@@ -108,7 +108,12 @@ public class Server {
 	}
 
 	private static boolean reconnectPlayerToSession(int gameId, Socket socket) {
-
-		return true;
+		for (Session session : activeSessions) {
+			if(session.getId() == gameId) {
+				session.sessionCommunicaton.add(socket);
+				return true;
+			}
+		}
+		return false;
 	}
 }
