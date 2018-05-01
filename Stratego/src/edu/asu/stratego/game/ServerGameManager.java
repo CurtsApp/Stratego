@@ -7,6 +7,7 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 
+import edu.asu.stratego.Server;
 import edu.asu.stratego.Session;
 import edu.asu.stratego.game.board.ServerBoard;
 
@@ -173,7 +174,8 @@ public class ServerGameManager implements Runnable {
 	}
 
 	private void playGame() {
-		while (true) {
+		boolean gameIsFinished = false;
+		while (!gameIsFinished) {
 			sendPlayerTurnColor(turn);
 
 			move = getGameData(turn);
@@ -185,11 +187,17 @@ public class ServerGameManager implements Runnable {
 				Move moveToPlayerOne = moves.playerOneMove;
 				Move moveToPlayerTwo = moves.playerTwoMove;
 
+				
 				// Check win conditions.
 				GameStatus winCondition = checkWinCondition();
 
 				sendGameData(moveToPlayerOne, moveToPlayerTwo, winCondition);
-
+				
+				if(winCondition != GameStatus.IN_PROGRESS) {
+					this.finishGame();
+					gameIsFinished = true;
+				}
+				
 				// Change turn color.
 				if (turn == PieceColor.RED)
 					turn = PieceColor.BLUE;
@@ -200,11 +208,16 @@ public class ServerGameManager implements Runnable {
 			} else if(!move.isRedConnected() && move.isBlueConnected()) {
 				waitForReconnect(PieceColor.RED);
 			} else {
-				// Both players are disconnected destroy this game
+				finishGame();
+				gameIsFinished = true;
 			}
 			
 			
 		}
+	}
+	
+	private void finishGame() {
+		Server.finishSession(gameId);
 	}
 	
 	private void waitForReconnect(PieceColor colorToWaitFor) {

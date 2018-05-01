@@ -116,4 +116,12 @@ public class Server {
 		}
 		return false;
 	}
+	
+	public static void finishSession(int gameId) {
+		for (Session session : activeSessions) {
+			if(session.getId() == gameId) {
+				activeSessions.remove(session);
+			}
+		}
+	}
 }
