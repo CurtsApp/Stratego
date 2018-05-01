@@ -61,12 +61,16 @@ public class ClientGameManager implements Runnable {
 		if (isReconnectingFromPreviousGame()) {
 			// Reestablish ClientSocket
 			ClientSocket.reconnect();
-
+			sendIsReconnectData();
 			playGame(true);
 		} else {
+			
 			connectToServer();
+			System.out.println("Connected to server");
+			sendIsReconnectData();
+			System.out.println("Reconnection data sent");
 			waitForOpponent();
-
+			System.out.println("Finished waiting for opponent");
 			setupBoard();
 			playGame(false);
 		}
@@ -92,17 +96,32 @@ public class ClientGameManager implements Runnable {
 			e.printStackTrace();
 		}
 	}
-
-	private boolean isReconnectingFromPreviousGame() {
-		// Read from file, check if was discconected
-
-		File file = new File("gameinfo.txt");
+	
+	private void sendIsReconnectData() {
 		try {
-			return file.exists();
+			System.out.println("Sending Reconnect Data");
+			toServer = new ObjectOutputStream(ClientSocket.getInstance().getOutputStream());
+			fromServer = new ObjectInputStream(ClientSocket.getInstance().getInputStream());
+			boolean isReconnect = isReconnectingFromPreviousGame();
+			
+			toServer.writeObject(isReconnect);
+			
+			System.out.println("Boolean sent");
+			if(isReconnect) {
+				System.out.println("Was Reconnect");
+				toServer.writeInt(ClientFileManager.getLastGameId());
+			} else {
+				System.out.println("WAs not reconnect");
+			}
 		} catch (Exception e) {
 			System.out.println(e);
 		}
-		return false;
+		
+	}
+
+	private boolean isReconnectingFromPreviousGame() {
+		// Read from file, check if was discconected
+		return ClientFileManager.doesGameInfoExist();
 	}
 
 	/**
@@ -218,17 +237,6 @@ public class ClientGameManager implements Runnable {
 	private void playGame(boolean wasReconnect) {
     	if(!wasReconnect) {
     		
-    		File file = new File("gameinfo.txt");
-    		try {
-    			file.createNewFile();
-    			FileWriter writer = new FileWriter(file);
-    			writer.write(ClientSocket.getInstance().getInetAddress() + "," + ClientSocket.getInstance().getPort() + ",");
-    			writer.flush();
-    			writer.close();
-    		} catch (Exception e) {
-    			
-    		}
-    		
     		// Remove setup panel
             Platform.runLater(() -> {
                 BoardScene.getRootPane().getChildren().remove(BoardScene.getSetupPanel());
@@ -247,17 +255,8 @@ public class ClientGameManager implements Runnable {
         // Get game id from server
         try {
 			int gameId = (int) fromServer.readObject();
-			File file = new File("gameinfo.txt");
-    		try {
-    			file.createNewFile();
-    			FileWriter writer = new FileWriter(file);
-    			writer.append(gameId + "");
-    			writer.flush();
-    			writer.close();
-    		} catch (Exception e) {
-    			
-    		}
-			
+			ClientFileManager.writeSessionData(ClientSocket.getInstance().getInetAddress().toString(), ClientSocket.getInstance().getPort(), gameId);
+			System.out.println("Game Info Saved");
 		} catch (ClassNotFoundException | IOException e1) {
 			// TODO Handle this somehow...
 			e1.printStackTrace();
